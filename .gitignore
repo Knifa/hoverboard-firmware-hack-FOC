@@ -9,3 +9,4 @@ MDK-ARM/Objects/
 MDK-ARM/RTE/
 MDK-ARM/*.uvguix.*
 build/
+scripts/venv
