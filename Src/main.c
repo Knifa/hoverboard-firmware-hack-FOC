@@ -194,13 +194,34 @@ int main(void) {
   int16_t board_temp_deg_c;
 
 
+  #ifdef VARIANT_HOVERBOARD
+    while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial) {
+      HAL_Delay(DELAY_IN_MAIN_LOOP);
+      readCommand();
+    }
+
+    enable = 1;
+  #endif
+
   while(1) {
     HAL_Delay(DELAY_IN_MAIN_LOOP);        //delay in ms
 
     readCommand();                        // Read Command: cmd1, cmd2
     calcAvgSpeed();                       // Calculate average measured speed: speedAvg, speedAvgAbs
 
-    #ifndef VARIANT_TRANSPOTTER
+    #ifdef VARIANT_HOVERBOARD
+      int32_t calibratedGyro = Sideboard_R.pitch + 260;
+
+      float pTerm = 1.25;
+
+      cmd1 = pTerm * (float) calibratedGyro;
+      cmd1 = CLAMP(calibratedGyro, -500, 500);
+
+      timeout = 0;
+
+      pwml = cmd1;
+      pwmr = cmd1;
+    #elif !defined(VARIANT_TRANSPOTTER)
       // ####### MOTOR ENABLING: Only if the initial input is very small (for SAFETY) #######
       if (enable == 0 && (!rtY_Left.z_errCode && !rtY_Right.z_errCode) && (cmd1 > -50 && cmd1 < 50) && (cmd2 > -50 && cmd2 < 50)){
         shortBeep(6);                     // make 2 beeps indicating the motor enable
