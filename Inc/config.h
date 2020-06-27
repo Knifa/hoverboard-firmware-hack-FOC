@@ -19,6 +19,7 @@
   //#define VARIANT_HOVERCAR    // Variant for HOVERCAR build
   //#define VARIANT_HOVERBOARD  // Variant for HOVERBOARD build
   //#define VARIANT_TRANSPOTTER // Variant for TRANSPOTTER build https://github.com/NiklasFauth/hoverboard-firmware-hack/wiki/Build-Instruction:-TranspOtter https://hackaday.io/project/161891-transpotter-ng
+  //#define VARIANT_ONEWHEEL
 #endif
 // ########################### END OF VARIANT SELECTION ############################
 
@@ -390,6 +391,14 @@
 #endif
 // ############################# END OF VARIANT_TRANSPOTTER SETTINGS ########################
 
+// ############################ VARIANT_ONEWHEEL SETTINGS ############################
+#ifdef VARIANT_ONEWHEEL
+  //#define SIDEBOARD_SERIAL_USART2       // left sensor board cable, disable if ADC or PPM is used!
+  //#define FEEDBACK_SERIAL_USART2
+  #define SIDEBOARD_SERIAL_USART3       // right sensor board cable, disable if I2C (nunchuk or lcd) is used!
+  #define FEEDBACK_SERIAL_USART3
+#endif
+// ######################## END OF VARIANT_ONEWHEEL SETTINGS #########################
 
 
 // ########################### UART SETIINGS ############################
@@ -437,7 +446,7 @@
 
 // ############################### VALIDATE SETTINGS ###############################
 #if !defined(VARIANT_ADC) && !defined(VARIANT_USART) && !defined(VARIANT_NUNCHUK) && !defined(VARIANT_PPM) && !defined(VARIANT_PWM) && \
-    !defined(VARIANT_IBUS) && !defined(VARIANT_HOVERCAR) && !defined(VARIANT_HOVERBOARD) && !defined(VARIANT_TRANSPOTTER)
+    !defined(VARIANT_IBUS) && !defined(VARIANT_HOVERCAR) && !defined(VARIANT_HOVERBOARD) && !defined(VARIANT_TRANSPOTTER) && !defined(VARIANT_ONEWHEEL)
   #error Variant not defined! Please check platformio.ini or Inc/config.h for available variants.
 #endif
 
