@@ -49,6 +49,9 @@ extern volatile adc_buf_t adc_buffer;
   extern uint8_t LCDerrorFlag;
 #endif
 
+extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart3;
+
 // Matlab defines - from auto-code generation
 //---------------
 extern P    rtP_Left;                   /* Block parameters (auto storage) */
@@ -82,10 +85,10 @@ extern SerialSideboard Sideboard_L;
 #if defined(SIDEBOARD_SERIAL_USART3)
 extern SerialSideboard Sideboard_R;
 #endif
-#if defined(CONTROL_PPM) && defined(DEBUG_SERIAL_USART3)
+#if (defined(CONTROL_PPM_LEFT) && defined(DEBUG_SERIAL_USART3)) || (defined(CONTROL_PPM_RIGHT) && defined(DEBUG_SERIAL_USART2))
 extern volatile uint16_t ppm_captured_value[PPM_NUM_CHANNELS+1];
 #endif
-#if defined(CONTROL_PWM) && defined(DEBUG_SERIAL_USART3)
+#if (defined(CONTROL_PWM_LEFT) && defined(DEBUG_SERIAL_USART3)) || (defined(CONTROL_PWM_RIGHT) && defined(DEBUG_SERIAL_USART2))
 extern volatile uint16_t pwm_captured_ch1_value;
 extern volatile uint16_t pwm_captured_ch2_value;
 #endif
@@ -189,7 +192,7 @@ int main(void) {
   int16_t speedL     = 0, speedR     = 0;
   int16_t lastSpeedL = 0, lastSpeedR = 0;
 
-  int32_t board_temp_adcFixdt = adc_buffer.temp << 20;  // Fixed-point filter output initialized with current ADC converted to fixed-point
+  int32_t board_temp_adcFixdt = adc_buffer.temp << 16;  // Fixed-point filter output initialized with current ADC converted to fixed-point
   int16_t board_temp_adcFilt  = adc_buffer.temp;
   int16_t board_temp_deg_c;
 
@@ -227,6 +230,7 @@ int main(void) {
         shortBeep(6);                     // make 2 beeps indicating the motor enable
         shortBeep(4); HAL_Delay(100);
         enable = 1;                       // enable motors
+        consoleLog("-- Motors enabled --\r\n");
       }
 
       // ####### VARIANT_HOVERCAR ####### 
@@ -409,11 +413,11 @@ int main(void) {
         setScopeChannel(0, (int16_t)adc_buffer.l_tx2);          // 1: ADC1
         setScopeChannel(1, (int16_t)adc_buffer.l_rx2);          // 2: ADC2
         #endif
-        #ifdef CONTROL_PPM
+        #if defined(CONTROL_PPM_LEFT) || defined(CONTROL_PPM_RIGHT)
         setScopeChannel(0, ppm_captured_value[0]);              // 1: CH1
         setScopeChannel(1, ppm_captured_value[1]);              // 2: CH2
         #endif
-        #ifdef CONTROL_PWM
+        #if defined(CONTROL_PWM_LEFT) || defined(CONTROL_PWM_RIGHT)
         setScopeChannel(0, pwm_captured_ch1_value);             // 1: CH1
         setScopeChannel(1, pwm_captured_ch2_value);             // 2: CH2
         #endif
@@ -439,25 +443,21 @@ int main(void) {
         Feedback.boardTemp	    = (int16_t)board_temp_deg_c;
 
         #if defined(FEEDBACK_SERIAL_USART2)
-          if(DMA1_Channel7->CNDTR == 0) {
+          if(__HAL_DMA_GET_COUNTER(huart2.hdmatx) == 0) {
             Feedback.cmdLed         = (uint16_t)sideboard_leds_L;
             Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas 
                                                ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
-            DMA1_Channel7->CCR     &= ~DMA_CCR_EN;
-            DMA1_Channel7->CNDTR    = sizeof(Feedback);
-            DMA1_Channel7->CMAR     = (uint32_t)&Feedback;
-            DMA1_Channel7->CCR     |= DMA_CCR_EN;          
+
+            HAL_UART_Transmit_DMA(&huart2, (uint8_t *)&Feedback, sizeof(Feedback));
           }
         #endif
         #if defined(FEEDBACK_SERIAL_USART3)
-          if(DMA1_Channel2->CNDTR == 0) {
+          if(__HAL_DMA_GET_COUNTER(huart3.hdmatx) == 0) {
             Feedback.cmdLed         = (uint16_t)sideboard_leds_R;
             Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas 
                                                ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
-            DMA1_Channel2->CCR     &= ~DMA_CCR_EN;
-            DMA1_Channel2->CNDTR    = sizeof(Feedback);
-            DMA1_Channel2->CMAR     = (uint32_t)&Feedback;
-            DMA1_Channel2->CCR     |= DMA_CCR_EN;          
+
+            HAL_UART_Transmit_DMA(&huart3, (uint8_t *)&Feedback, sizeof(Feedback));
           }
         #endif            
       }

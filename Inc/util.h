@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+
+// Rx Structures USART
 #if defined(CONTROL_SERIAL_USART2) || defined(CONTROL_SERIAL_USART3)
   #ifdef CONTROL_IBUS    
     typedef struct{
@@ -31,14 +33,14 @@
       uint8_t  channels[IBUS_NUM_CHANNELS*2];
       uint8_t  checksuml;
       uint8_t  checksumh;    
-    } Serialcommand;
+    } SerialCommand;
   #else
     typedef struct{
       uint16_t  start; 
       int16_t   steer;
       int16_t   speed;
       uint16_t  checksum;    
-    } Serialcommand;
+    } SerialCommand;
   #endif
 #endif
 #if defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3)
@@ -56,6 +58,7 @@
 void BLDC_Init(void);
 void Input_Lim_Init(void);
 void Input_Init(void);
+void UART_DisableRxErrors(UART_HandleTypeDef *huart);
 
 // General Functions
 void poweronMelody(void);
@@ -66,6 +69,7 @@ void calcAvgSpeed(void);
 void adcCalibLim(void);
 void updateCurSpdLim(void);
 void saveConfig(void);
+int  addDeadBand(int16_t u, int16_t deadBand, int16_t min, int16_t max);
 
 // Poweroff Functions
 void poweroff(void);
@@ -73,7 +77,17 @@ void poweroffPressCheck(void);
 
 // Read Command Function
 void readCommand(void);
-int  addDeadBand(int16_t u, int16_t deadBand, int16_t min, int16_t max);
+void usart2_rx_check(void);
+void usart3_rx_check(void);
+#if defined(DEBUG_SERIAL_USART2) || defined(DEBUG_SERIAL_USART3)
+void usart_process_debug(uint8_t *userCommand, uint32_t len);
+#endif
+#if defined(CONTROL_SERIAL_USART2) || defined(CONTROL_SERIAL_USART3)
+void usart_process_command(SerialCommand *command_in, SerialCommand *command_out, uint8_t usart_idx);
+#endif
+#if defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3)
+void usart_process_sideboard(SerialSideboard *Sideboard_in, SerialSideboard *Sideboard_out, uint8_t usart_idx);
+#endif
 
 // Sideboard functions
 void sideboardLeds(uint8_t *leds);
