@@ -197,7 +197,7 @@ int main(void) {
   int16_t board_temp_deg_c;
 
 
-  #ifdef VARIANT_HOVERBOARD
+  #ifdef VARIANT_ONEWHEEL
     // Wait until we have something sensible from the sideboard.
     while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial) {
       HAL_Delay(DELAY_IN_MAIN_LOOP);
@@ -213,7 +213,7 @@ int main(void) {
     readCommand();                        // Read Command: cmd1, cmd2
     calcAvgSpeed();                       // Calculate average measured speed: speedAvg, speedAvgAbs
 
-    #ifdef VARIANT_HOVERBOARD
+    #ifdef VARIANT_ONEWHEEL
       int32_t calibratedGyro = Sideboard_R.pitch + 260;
 
       float pTerm = 1.25;
