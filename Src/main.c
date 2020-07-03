@@ -196,14 +196,27 @@ int main(void) {
   int16_t board_temp_adcFilt  = adc_buffer.temp;
   int16_t board_temp_deg_c;
 
+  float kP = 12.0f;
+  float kI = 0.0f;
+  float kD = 10000.0f;
+
+  float outputSum = 0;
+  double errorSum = 0;
+
+  float lastAngle = 0;
+  float lastError = 0;
+
+  float targetAngle = 15.0f;
+  float dt = (DELAY_IN_MAIN_LOOP / 1000.0f);
 
   #ifdef VARIANT_ONEWHEEL
     // Wait until we have something sensible from the sideboard.
-    while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial) {
+    while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial || (Sideboard_R.roll == 0 && Sideboard_R.pitch == 0 && Sideboard_R.yaw == 0)) {
       HAL_Delay(DELAY_IN_MAIN_LOOP);
       readCommand();
     }
 
+    //HAL_Delay(8000);
     enable = 1;
   #endif
 
@@ -214,17 +227,25 @@ int main(void) {
     calcAvgSpeed();                       // Calculate average measured speed: speedAvg, speedAvgAbs
 
     #ifdef VARIANT_ONEWHEEL
-      int32_t calibratedGyro = Sideboard_R.pitch + 260;
+      enable = 1;
 
-      float pTerm = 1.25;
+      float currentAngle = Sideboard_R.pitch / 10.0f;
+      float dAngle = currentAngle - lastAngle;
 
-      cmd1 = pTerm * (float) calibratedGyro;
-      cmd1 = CLAMP(calibratedGyro, -500, 500);
+      float error = targetAngle - currentAngle;
+      float dError = error - lastError;
+
+      errorSum = errorSum + (error * dt);
+      errorSum = CLAMP(errorSum, -100, 100);
+
+      float output = (kP * error) + (kI * errorSum) + (kD * dError * dt);
+      output = CLAMP(output, -200, 200);
 
       timeout = 0;
+      pwml = pwmr = output;
 
-      pwml = cmd1;
-      pwmr = cmd1;
+      lastAngle = currentAngle;
+      lastError = error;
     #elif !defined(VARIANT_TRANSPOTTER)
       // ####### MOTOR ENABLING: Only if the initial input is very small (for SAFETY) #######
       if (enable == 0 && (!rtY_Left.z_errCode && !rtY_Right.z_errCode) && (cmd1 > -50 && cmd1 < 50) && (cmd2 > -50 && cmd2 < 50)){
@@ -465,11 +486,11 @@ int main(void) {
     #endif
 
     // ####### POWEROFF BY POWER-BUTTON #######
-    poweroffPressCheck();
+    // poweroffPressCheck();
 
     // ####### BEEP AND EMERGENCY POWEROFF #######
     if ((TEMP_POWEROFF_ENABLE && board_temp_deg_c >= TEMP_POWEROFF && speedAvgAbs < 20) || (batVoltage < BAT_DEAD && speedAvgAbs < 20)) {  // poweroff before mainboard burns OR low bat 3
-      poweroff();
+      // poweroff();
     } else if (rtY_Left.z_errCode || rtY_Right.z_errCode) {     // disable motors and beep in case of Motor error - fast beep
       enable        = 0;
       buzzerFreq    = 8;
