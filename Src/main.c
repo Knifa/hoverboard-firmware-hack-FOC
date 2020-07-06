@@ -223,6 +223,9 @@ int main(void) {
       timeout = 0;
 
       pwml = pwmr = CLAMP(pid_output, -250, 250);
+
+      poweroffPressCheck(); // Power off button detection
+
     #elif !defined(VARIANT_TRANSPOTTER)
       // ####### MOTOR ENABLING: Only if the initial input is very small (for SAFETY) #######
       if (enable == 0 && (!rtY_Left.z_errCode && !rtY_Right.z_errCode) && (cmd1 > -50 && cmd1 < 50) && (cmd2 > -50 && cmd2 < 50)){
