@@ -1136,7 +1136,19 @@ void sideboardLeds(uint8_t *leds) {
  * In non-hoverboard variants, the sensors are used as push buttons.
  */
 void sideboardSensors(uint8_t sensors) {
-  #if !defined(VARIANT_HOVERBOARD) && (defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3))
+  
+  #if defined(VARIANT_ONEWHEEL) && (defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3))
+    // SIDEBOARD UTIL FOR ONEWHEEL VARIANT
+    if ((sensors & SENSOR1_SET) || (sensors & SENSOR2_SET)) { // Check opto sensor
+      if ((enable == 0) && ((Sideboard_R.pitch / 10.0f) > -5) && ((Sideboard_R.pitch / 10.0f) < 5)){ // If motor is off, check that board is level before enabling motor
+        enable = 1;
+      }
+    } 
+    else {
+      enable = 0;
+    }
+
+  #elif !defined(VARIANT_HOVERBOARD) && (defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3))
     uint8_t sensor1_rising_edge, sensor2_rising_edge;
     sensor1_rising_edge  = (sensors & SENSOR1_SET) && !sensor1_prev;
     sensor2_rising_edge  = (sensors & SENSOR2_SET) && !sensor2_prev;

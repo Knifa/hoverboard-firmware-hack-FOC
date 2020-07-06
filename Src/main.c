@@ -218,7 +218,8 @@ int main(void) {
     calcAvgSpeed();                       // Calculate average measured speed: speedAvg, speedAvgAbs
 
     #ifdef VARIANT_ONEWHEEL
-      enable = 1;
+      sideboardSensors((uint8_t)Sideboard_R.sensors); // Check right sideboard opto sensor
+    
       timeout = 0;
 
       pwml = pwmr = CLAMP(pid_output, -250, 250);
