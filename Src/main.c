@@ -208,7 +208,6 @@ int main(void) {
       poweroffPressCheck(); // Power off button detection incase stuck in init
     }
 
-    enable = 1;
   #endif
 
   while(1) {
