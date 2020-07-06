@@ -205,6 +205,7 @@ int main(void) {
     while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial || (Sideboard_R.roll == 0 && Sideboard_R.pitch == 0 && Sideboard_R.yaw == 0)) {
       HAL_Delay(DELAY_IN_MAIN_LOOP);
       readCommand();
+      poweroffPressCheck(); // Power off button detection incase stuck in init
     }
 
     enable = 1;
