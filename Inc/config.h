@@ -414,9 +414,9 @@
 // ############################ VARIANT_ONEWHEEL SETTINGS ############################
 #ifdef VARIANT_ONEWHEEL
   //#define SIDEBOARD_SERIAL_USART2       // left sensor board cable, disable if ADC or PPM is used!
-  //#define FEEDBACK_SERIAL_USART2
+  #define FEEDBACK_SERIAL_USART2
   #define SIDEBOARD_SERIAL_USART3       // right sensor board cable, disable if I2C (nunchuk or lcd) is used!
-  #define FEEDBACK_SERIAL_USART3
+  //#define FEEDBACK_SERIAL_USART3
 #endif
 // ######################## END OF VARIANT_ONEWHEEL SETTINGS #########################
 
@@ -430,12 +430,12 @@
 #endif
 #if defined(FEEDBACK_SERIAL_USART2) || defined(CONTROL_SERIAL_USART2) || defined(DEBUG_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART2)
   #ifndef USART2_BAUD
-    #define USART2_BAUD           38400                   // UART2 baud rate (long wired cable)
+    #define USART2_BAUD           921600                   // UART2 baud rate (long wired cable)
   #endif
   #define USART2_WORDLENGTH       UART_WORDLENGTH_8B      // UART_WORDLENGTH_8B or UART_WORDLENGTH_9B
 #endif
 #if defined(FEEDBACK_SERIAL_USART3) || defined(CONTROL_SERIAL_USART3) || defined(DEBUG_SERIAL_USART3) || defined(SIDEBOARD_SERIAL_USART3)
-  #define USART3_BAUD             38400                   // UART3 baud rate (short wired cable)
+  #define USART3_BAUD             921600                   // UART3 baud rate (short wired cable)
   #define USART3_WORDLENGTH       UART_WORDLENGTH_8B      // UART_WORDLENGTH_8B or UART_WORDLENGTH_9B
 #endif
 // ########################### UART SETIINGS ############################

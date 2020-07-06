@@ -30,6 +30,8 @@
 #include "BLDC_controller.h"      /* BLDC's header file */
 #include "rtwtypes.h"
 
+#include "pid.h"
+
 #if defined(DEBUG_I2C_LCD) || defined(SUPPORT_LCD)
 #include "hd44780.h"
 #endif
@@ -104,18 +106,20 @@ volatile uint32_t main_loop_counter;
 // Local variables
 //------------------------------------------------------------------------
 #if defined(FEEDBACK_SERIAL_USART2) || defined(FEEDBACK_SERIAL_USART3)
-typedef struct{
-  uint16_t  start;
-  int16_t   cmd1;
-  int16_t   cmd2;
-  int16_t   speedR_meas;
-  int16_t   speedL_meas;
-  int16_t   batVoltage;
-  int16_t   boardTemp;
-  uint16_t 	cmdLed;
-  uint16_t  checksum;
-} SerialFeedback;
-static SerialFeedback Feedback;
+  #ifndef VARIANT_ONEWHEEL
+    typedef struct{
+      uint16_t  start;
+      int16_t   cmd1;
+      int16_t   cmd2;
+      int16_t   speedR_meas;
+      int16_t   speedL_meas;
+      int16_t   batVoltage;
+      int16_t   boardTemp;
+      uint16_t 	cmdLed;
+      uint16_t  checksum;
+    } SerialFeedback;
+    static SerialFeedback Feedback;
+  #endif
 #endif
 #if defined(FEEDBACK_SERIAL_USART2)
 static uint8_t sideboard_leds_L;
@@ -196,18 +200,6 @@ int main(void) {
   int16_t board_temp_adcFilt  = adc_buffer.temp;
   int16_t board_temp_deg_c;
 
-  float kP = 8.0f;
-  float kI = 0.0f;
-  float kD = 0.3f;
-  float targetAngle = 0.0f;
-  float dt = ((float) DELAY_IN_MAIN_LOOP / 1000.0f);
-
-  double errorSum = 0;
-
-  float lastAngle = 0;
-  float lastError = 0;
-  float lastOutput = 0;
-
   #ifdef VARIANT_ONEWHEEL
     // Wait until we have something sensible from the sideboard.
     while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial || (Sideboard_R.roll == 0 && Sideboard_R.pitch == 0 && Sideboard_R.yaw == 0)) {
@@ -215,7 +207,6 @@ int main(void) {
       readCommand();
     }
 
-    //HAL_Delay(8000);
     enable = 1;
   #endif
 
@@ -227,27 +218,9 @@ int main(void) {
 
     #ifdef VARIANT_ONEWHEEL
       enable = 1;
-
-      float currentAngle = Sideboard_R.pitch / 10.0f;
-      float dAngle = currentAngle - lastAngle;
-
-      float error = targetAngle - currentAngle;
-      float dError = error - lastError;
-
-      errorSum = errorSum + (error * dt);
-      errorSum = CLAMP(errorSum, -100, 100);
-
-      float output = (kP * error) + (kI * errorSum) + (kD * dError / dt);
-
-      output = lastOutput + ((output - lastOutput) * 0.1f);
-      output = CLAMP(output, -250, 250);
-
       timeout = 0;
-      pwml = pwmr = -output;
 
-      lastAngle = currentAngle;
-      lastError = error;
-      lastOutput = output;
+      pwml = pwmr = CLAMP(pid_output, -250, 250);
     #elif !defined(VARIANT_TRANSPOTTER)
       // ####### MOTOR ENABLING: Only if the initial input is very small (for SAFETY) #######
       if (enable == 0 && (!rtY_Left.z_errCode && !rtY_Right.z_errCode) && (cmd1 > -50 && cmd1 < 50) && (cmd2 > -50 && cmd2 < 50)){
@@ -417,12 +390,12 @@ int main(void) {
 
     // ####### SIDEBOARDS HANDLING #######
     #if defined(SIDEBOARD_SERIAL_USART2)
-      sideboardLeds(&sideboard_leds_L);
-      sideboardSensors((uint8_t)Sideboard_L.sensors);
+      //sideboardLeds(&sideboard_leds_L);
+      //sideboardSensors((uint8_t)Sideboard_L.sensors);
     #endif
     #if defined(SIDEBOARD_SERIAL_USART3)
-      sideboardLeds(&sideboard_leds_R);
-      sideboardSensors((uint8_t)Sideboard_R.sensors);
+      //sideboardLeds(&sideboard_leds_R);
+      //sideboardSensors((uint8_t)Sideboard_R.sensors);
     #endif
 
     // ####### CALC BOARD TEMPERATURE #######
@@ -457,34 +430,40 @@ int main(void) {
 
     // ####### FEEDBACK SERIAL OUT #######
     #if defined(FEEDBACK_SERIAL_USART2) || defined(FEEDBACK_SERIAL_USART3)
-      if (main_loop_counter % 2 == 0) {    // Send data periodically every 10 ms
-        Feedback.start	        = (uint16_t)SERIAL_START_FRAME;
-        Feedback.cmd1           = (int16_t)cmd1;
-        Feedback.cmd2           = (int16_t)cmd2;
-        Feedback.speedR_meas	  = (int16_t)rtY_Right.n_mot;
-        Feedback.speedL_meas	  = (int16_t)rtY_Left.n_mot;
-        Feedback.batVoltage	    = (int16_t)(batVoltage * BAT_CALIB_REAL_VOLTAGE / BAT_CALIB_ADC);
-        Feedback.boardTemp	    = (int16_t)board_temp_deg_c;
+      #ifdef VARIANT_ONEWHEEL
+        if(__HAL_DMA_GET_COUNTER(huart2.hdmatx) == 0) {
+          HAL_UART_Transmit_DMA(&huart2, (uint8_t *)&pid_feedback, sizeof(pid_feedback));
+        }
+      #else
+        if (main_loop_counter % 2 == 0) {    // Send data periodically every 10 ms
+          Feedback.start	        = (uint16_t)SERIAL_START_FRAME;
+          Feedback.cmd1           = (int16_t)cmd1;
+          Feedback.cmd2           = (int16_t)cmd2;
+          Feedback.speedR_meas	  = (int16_t)rtY_Right.n_mot;
+          Feedback.speedL_meas	  = (int16_t)rtY_Left.n_mot;
+          Feedback.batVoltage	    = (int16_t)(batVoltage * BAT_CALIB_REAL_VOLTAGE / BAT_CALIB_ADC);
+          Feedback.boardTemp	    = (int16_t)board_temp_deg_c;
 
-        #if defined(FEEDBACK_SERIAL_USART2)
-          if(__HAL_DMA_GET_COUNTER(huart2.hdmatx) == 0) {
-            Feedback.cmdLed         = (uint16_t)sideboard_leds_L;
-            Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas
-                                               ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
+          #if defined(FEEDBACK_SERIAL_USART2)
+            if(__HAL_DMA_GET_COUNTER(huart2.hdmatx) == 0) {
+              Feedback.cmdLed         = (uint16_t)sideboard_leds_L;
+              Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas
+                                                ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
 
-            HAL_UART_Transmit_DMA(&huart2, (uint8_t *)&Feedback, sizeof(Feedback));
-          }
-        #endif
-        #if defined(FEEDBACK_SERIAL_USART3)
-          if(__HAL_DMA_GET_COUNTER(huart3.hdmatx) == 0) {
-            Feedback.cmdLed         = (uint16_t)sideboard_leds_R;
-            Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas
-                                               ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
+              HAL_UART_Transmit_DMA(&huart2, (uint8_t *)&Feedback, sizeof(Feedback));
+            }
+          #endif
+          #if defined(FEEDBACK_SERIAL_USART3)
+            if(__HAL_DMA_GET_COUNTER(huart3.hdmatx) == 0) {
+              Feedback.cmdLed         = (uint16_t)sideboard_leds_R;
+              Feedback.checksum       = (uint16_t)(Feedback.start ^ Feedback.cmd1 ^ Feedback.cmd2 ^ Feedback.speedR_meas ^ Feedback.speedL_meas
+                                                ^ Feedback.batVoltage ^ Feedback.boardTemp ^ Feedback.cmdLed);
 
-            HAL_UART_Transmit_DMA(&huart3, (uint8_t *)&Feedback, sizeof(Feedback));
-          }
-        #endif
-      }
+              HAL_UART_Transmit_DMA(&huart3, (uint8_t *)&Feedback, sizeof(Feedback));
+            }
+          #endif
+        }
+      #endif
     #endif
 
     // ####### POWEROFF BY POWER-BUTTON #######

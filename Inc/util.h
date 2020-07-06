@@ -49,6 +49,9 @@
       int16_t  	roll;
       int16_t  	pitch;
       int16_t  	yaw;
+      int16_t   gyro_roll;
+      int16_t   gyro_pitch;
+      int16_t   gyro_yaw;
       uint16_t  sensors;
       uint16_t 	checksum;
     } SerialSideboard;

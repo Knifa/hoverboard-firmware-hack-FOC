@@ -30,6 +30,8 @@
 #include "BLDC_controller.h"
 #include "rtwtypes.h"
 
+#include "pid.h"
+
 #if defined(DEBUG_I2C_LCD) || defined(SUPPORT_LCD)
 #include "hd44780.h"
 #endif
@@ -1026,11 +1028,11 @@ void usart_process_command(SerialCommand *command_in, SerialCommand *command_out
  */
 #if defined(SIDEBOARD_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART3)
 void usart_process_sideboard(SerialSideboard *Sideboard_in, SerialSideboard *Sideboard_out, uint8_t usart_idx)
-{	
+{
   uint16_t checksum;
 	if (Sideboard_in->start == SERIAL_START_FRAME) {
-		checksum = (uint16_t)(Sideboard_in->start ^ Sideboard_in->roll ^ Sideboard_in->pitch ^ Sideboard_in->yaw ^ Sideboard_in->sensors);
-		if (Sideboard_in->checksum == checksum) {					
+		checksum = (uint16_t)(Sideboard_in->start ^ Sideboard_in->roll ^ Sideboard_in->pitch ^ Sideboard_in->yaw ^ Sideboard_in->gyro_roll ^ Sideboard_in->gyro_pitch ^ Sideboard_in->gyro_yaw ^ Sideboard_in->sensors);
+		if (Sideboard_in->checksum == checksum) {
 			*Sideboard_out = *Sideboard_in;
       if (usart_idx == 2) {             // Sideboard USART2
         #ifdef SIDEBOARD_SERIAL_USART2
@@ -1041,6 +1043,11 @@ void usart_process_sideboard(SerialSideboard *Sideboard_in, SerialSideboard *Sid
         #ifdef SIDEBOARD_SERIAL_USART3
         timeoutCntSerial_R  = 0;        // Reset timeout counter
         timeoutFlagSerial_R = 0;        // Clear timeout flag
+
+        #ifdef VARIANT_ONEWHEEL
+          pid_compute(Sideboard_out->pitch, Sideboard_out->gyro_pitch);
+        #endif
+
         #endif
       }
     }
