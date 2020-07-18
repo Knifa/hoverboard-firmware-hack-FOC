@@ -205,9 +205,9 @@ int main(void) {
     while (Sideboard_R.start != SERIAL_START_FRAME || timeoutFlagSerial || (Sideboard_R.roll == 0 && Sideboard_R.pitch == 0 && Sideboard_R.yaw == 0)) {
       HAL_Delay(DELAY_IN_MAIN_LOOP);
       readCommand();
+      poweroffPressCheck(); // Power off button detection incase stuck in init
     }
 
-    enable = 1;
   #endif
 
   while(1) {
@@ -217,10 +217,14 @@ int main(void) {
     calcAvgSpeed();                       // Calculate average measured speed: speedAvg, speedAvgAbs
 
     #ifdef VARIANT_ONEWHEEL
-      enable = 1;
+      sideboardSensors((uint8_t)Sideboard_R.sensors); // Check right sideboard opto sensor
+    
       timeout = 0;
 
       pwml = pwmr = CLAMP(pid_output, -250, 250);
+
+      poweroffPressCheck(); // Power off button detection
+
     #elif !defined(VARIANT_TRANSPOTTER)
       // ####### MOTOR ENABLING: Only if the initial input is very small (for SAFETY) #######
       if (enable == 0 && (!rtY_Left.z_errCode && !rtY_Right.z_errCode) && (cmd1 > -50 && cmd1 < 50) && (cmd2 > -50 && cmd2 < 50)){
